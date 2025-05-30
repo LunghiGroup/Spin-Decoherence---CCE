@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -14,8 +8,6 @@ import pycce as pc
 import ase
 import time
 from mpi4py import MPI
-
-# In[ ]:
 
 class BathSetup:
     def __init__(self, filepath, concentration, cell_size, seed, bath_type):
@@ -69,9 +61,8 @@ class BathSetup:
         This function sets up the unit cell dimensions and angles based on predefined values.
         '''
         # Setup the bath cell object unit cell
-        #unit_cell=np.array([[13.2521,-1.0487e-06,-0.00231045],[0,13.2521,-0.000288633],[0,0,9.67194]])
         unit_cell=np.array([[0.00231045,-1.0487e-06,13.2521],[0.000288633,13.2521,0],[-9.67194,0,0]])
-        self.sic = pc.BathCell(cell=unit_cell) #used optimized structure note there is also an x-ray structure with slightly different values
+        self.sic = pc.BathCell(cell=unit_cell)
         # Additional setup based on self.concentration and other attributes
 
     def extract_columns(self,uc):
@@ -131,9 +122,6 @@ class BathSetup:
             self.pos = [x[76], y[76], z[76]]
             self.qpos = self.sic.to_cell(self.pos)
 
-# so hydrogen and carbon do not carry any quadrupole. Is this what we want?
-# why you don't have the 2H and 15N rows as well?
-
             # Set spin baths conditionally
             if bath_type=='hydrogen':
                 # Set isotope concentration
@@ -144,19 +132,20 @@ class BathSetup:
                             '1H', 1/2, 26.7522
                             ],['2H',1,4.1065,0.00286]]
                 
+            elif bath_type=='deuterium':
+                # Set isotope concentration
+                self.sic.isotopes['H']['2H'] = 1
+                # Set spin types
+                self.spin_types = ['2H',1,4.1065,0.00286]
+                
             elif bath_type=='nitrogen':
                 # Set isotope concentration
                 self.sic.isotopes['N']['14N'] = 0.9963200000000001
                 self.sic.isotopes['N']['15N'] = 0.00368
                 # Set spin types
-                #self.spin_types = [[
-                #           '14N', 1, 1.9331, 20.44 
-                #            ],['15N',1/2,-2.7126]
                 self.spin_types = [[
                             '14N', 1, 1.9331, 0.02
-                            ],['15N',1/2,-2.7126]]
-                            
-#### I don't agree on the value of quadrupole you have reported for 14N, I have found 0.02 not 20.44              
+                            ],['15N',1/2,-2.7126]]           
                 
             elif bath_type=='carbon':
                 # Set isotope concentration
@@ -182,10 +171,6 @@ class BathSetup:
         for element, count in element_counts.items():
             print(f"{element}: {count}")
         return
-
-
-# In[ ]:
-
 
 class CenterSetup:
     def __init__(self, atens_file_path, gtens_file_path, spin_type, qpos, alpha=None, beta=None):
@@ -299,7 +284,6 @@ class CenterSetup:
         rotated_interaction_matrix = rotation_matrix @ interaction_matrix @ rotation_matrix.T
 
         return rotated_interaction_matrix
-        #return interaction_matrix
 
     def get_electron_gyro(self, printing=False):
         '''
@@ -330,9 +314,6 @@ class CenterSetup:
         rotated_tensor = rotation_matrix @ tensor_matrix @ rotation_matrix.T
 
         return rotated_tensor
-        #return tensor_matrix
-
-#######let's be careful. Is really this what we want to do on the nuclear gyromagnetic factor?
 
     def get_nuclear_gyro(self):
         '''
@@ -342,10 +323,6 @@ class CenterSetup:
         gyro_tensor=np.eye(3)*const
         # Create a 3x3 matrix filled with the constant
         return gyro_tensor
-
-
-# In[ ]:
-
 
 class SimulatorSetup:
     def __init__(self, center, atoms, order, r_bath, r_dipole, magnetic_field, pulses, n_clusters):
@@ -377,10 +354,6 @@ class SimulatorSetup:
                             pulses=self.pulses,
                             n_clusters=self.n_clusters)
         return calc
-
-
-# In[ ]:
-
 
 class RunCalc:
     def __init__(self, calc, timespace, method, nbstates, quantity, parallel, parallel_states):
@@ -416,17 +389,13 @@ class RunCalc:
         l_real = l.real
         return l_real
 
-
-# In[ ]:
-
-
 timespace = np.linspace(0, 3e-2, 2001)
 
 
 default_center_parameters = {
-    'atens_file_path': '/home/users/ryanc70/PyCCE/VOTPP/VOTPP_opt.Atens',
-    'gtens_file_path': '/home/users/ryanc70/PyCCE/VOTPP/VOTPP_opt.gtens',
-    'spin_type': 'electron', # choose between 'electron', 'nuclear', 'both'
+    'atens_file_path': 'Path to VOTPP_opt.Atens',
+    'gtens_file_path': 'Path to VOTPP_opt.gtens',
+    'spin_type': 'electron',
     'alpha': 0,
     'beta': 1,
 }
@@ -441,8 +410,8 @@ default_calc_parameters = {
 }
 
 default_bath_parameters = {
-    'filepath': '/home/users/ryanc70/PyCCE/VOTPP/rotated_good.xyz',
-    'bath_type': 'hydrogen', # choose between 'electronic', 'hydrogen', 'nitrogen', 'carbon'
+    'filepath': 'Path to rotated_good.xyz',
+    'bath_type': 'hydrogen',
     'concentration': 1, 
     'cell_size': 100, 
     'seed': 8800
@@ -471,41 +440,4 @@ if MPI.COMM_WORLD.Get_rank()==0:
 run = RunCalc(calc, **default_calc_parameters)
 result = run.run_calculation()
 
-Mx_eh = result
-
-
-# In[ ]:
-
-
-def st_exp(x,tau,B):
-    return np.exp(-(x/tau)**B)
-
-
-# In[ ]:
-
-
-popt_exponential, pcov_exponential = scipy.optimize.curve_fit(st_exp, timespace, Mx_eh,\
-                                                              p0=[10e-3,1])
-T2_eh = popt_exponential[0]*1e3
-if MPI.COMM_WORLD.Get_rank()==0:
-    print(f'T2 is {T2_eh} microseconds')
-
-# In[ ]:
-
-
-fig = plt.figure(figsize=(10,5))
-plt.title('VOTPP Free Electron Decoherence in a Hydrogen Bath')
-plt.xlim([0,max(timespace)*1e3])
-plt.ylim([0,1])
-plt.xlabel('$t(\mu s)$')
-plt.ylabel('Coherence')
-plt.plot(timespace*1e3, Mx_eh, color='b')
-plt.plot(timespace*1e3, st_exp(timespace, popt_exponential[0],popt_exponential[1]),color='r')
-plt.savefig(fname="VOTPP_Electron_Hydrogen_Decoherence.pdf", format='pdf')
-plt.show()
-
-
-# In[ ]:
-
-
-np.savetxt('electron_hydrogen_decoherence.dat', np.column_stack((timespace,Mx_eh)))
+np.savetxt('electron_hydrogen_decoherence.dat', np.column_stack((timespace,result)))
