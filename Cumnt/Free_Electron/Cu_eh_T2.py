@@ -84,7 +84,6 @@ class BathSetup:
         by separating columns from the DataFrame into numpy arrays.
         '''
         # Separate columns into numpy arrays and populate the cell
-        # This could be a separate method
         self.N, self.x, self.y, self.z = self.extract_columns(uc)
         self.sic.zdir = [0, 0, 1]
         self.x = np.array(self.x)
@@ -142,7 +141,6 @@ class BathSetup:
     def print_bath(self):
         '''
         This function prints out the counts of different elements present in the bath.
-        Just a sanity check, really! :)
         '''
         from collections import Counter
         element_counts = Counter(self.atoms.N)
@@ -264,7 +262,6 @@ class CenterSetup:
         rotated_interaction_matrix = rotation_matrix @ interaction_matrix @ rotation_matrix.T
 
         return rotated_interaction_matrix
-        #return interaction_matrix
 
     def get_electron_gyro(self, printing=False):
         '''
@@ -295,9 +292,6 @@ class CenterSetup:
         rotated_tensor = rotation_matrix @ tensor_matrix @ rotation_matrix.T
 
         return rotated_tensor
-        #return tensor_matrix
-
-#######let's be careful. Is really this what we want to do on the nuclear gyromagnetic factor?
 
     def get_nuclear_gyro(self):
         '''
@@ -422,25 +416,5 @@ if MPI.COMM_WORLD.Get_rank()==0:
 
 run = RunCalc(calc, **default_calc_parameters)
 result = run.run_calculation()
-
-def st_exp(x,tau,B):
-    return np.exp(-(x/tau)**B)
-
-popt_exponential, pcov_exponential = scipy.optimize.curve_fit(st_exp, timespace, result, p0=[10e-3,1])
-
-T2_eh = popt_exponential[0]*1e3
-if MPI.COMM_WORLD.Get_rank()==0:
-    print(f'T2 is {T2_eh} microseconds')
-
-fig = plt.figure(figsize=(10, 5))
-plt.title('Cu $T_2$ Free Electron Decoherence in a Hydrogen Bath')
-plt.xlabel('$t(\mu s)$')
-plt.ylabel('Coherence')
-plt.xlim([0,max(timespace)*1e3])
-plt.ylim([0,1])
-plt.plot(timespace*1e3, result, color='b')
-plt.plot(timespace*1e3, st_exp(timespace, popt_exponential[0], popt_exponential[1]), color='r')
-plt.savefig(fname="Cu_Electron_Hydrogen_Decoherence.pdf", format='pdf')
-plt.show()
 
 np.savetxt('electron_hydrogen_decoherence.dat', np.column_stack((timespace, result)))
