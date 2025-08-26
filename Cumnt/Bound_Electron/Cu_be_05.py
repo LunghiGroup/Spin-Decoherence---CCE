@@ -34,7 +34,7 @@ default_calc_parameters = {
 }
 
 Mx = []
-nsamples = 75
+nsamples = 150
 np.random.seed(8800)
 seeds = list(np.random.randint(low=1,high=99999,size=nsamples))
 for seed in seeds:
